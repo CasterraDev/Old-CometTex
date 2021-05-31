@@ -22,6 +22,7 @@ typedef struct erow {
 
 struct editorConfig{
     int mx,my;
+    int rowOffset;
     int screenRow;
     int screenCol;
     int numRows;
@@ -100,7 +101,8 @@ void enableRawMode(){
 
 void editorDrawRow(struct abuf *ab){
     for(int i = 0;i<E.screenRow;i++){
-        if (i >= E.numRows){
+        int fileRow = i + E.rowOffset;
+        if (fileRow >= E.numRows){
             if (E.numRows == 0 && i == E.screenRow / 3){
                 char welcome[124];
                 int welcomeLen = snprintf(welcome, sizeof(welcome), "CometTex Editor -- Version %s", COMETTEX_VERSION);
@@ -118,9 +120,9 @@ void editorDrawRow(struct abuf *ab){
                 abAppend(ab, "~", 1);
             }
         }else{
-            int len = E.row.size;
+            int len = E.row[fileRow].size;
             if (len > E.screenCol) len = E.screenCol;
-            abAppend(ab, E.row.chars, len);
+            abAppend(ab, E.row[fileRow].chars, len);
         }
 
         abAppend(ab, "\x1b[K", 3);
@@ -290,6 +292,17 @@ int getWindowSize(int *rows,int *cols){
     }
 }
 
+void editorAppendRow(char *s, size_t len){
+    E.row = realloc(E.row, sizeof(erow) * (E.numRows + 1));
+
+    int at = E.numRows;
+    E.row[at].size = len;
+    E.row[at].chars = malloc(len + 1);
+    memcpy(E.row[at].chars, s, len);
+    E.row[at].chars[len] = '\0';
+    E.numRows++;
+}
+
 void editorOpen(char *filename){
     FILE *fp = fopen(filename, "r");
     if (!fp) die("fopen");
@@ -297,25 +310,20 @@ void editorOpen(char *filename){
     char *line = NULL;
     size_t linecap = 0;
     ssize_t linelen;
-    linelen = getline(&line, &linecap, fp);
-    if (linelen != -1){
+    while ((linelen = getline(&line, &linecap, fp)) != -1){
         while(linelen > 0 && (line[linelen - 1] == '\n' || line[linelen - 1] == '\r')){
-            line--;
+            linelen--;
         }
-
-        E.row.size = linelen;
-        E.row.chars = malloc(linelen + 1);
-        memcpy(E.row.chars, line, linelen);
-        E.row.chars[linelen] = '\0';
-        E.numRows = 1;
+        editorAppendRow(line, linelen);
     }
-    //free(line);
+    free(line);
     fclose(fp);
 }
 
 void initEditor(){
     E.mx = 0;
     E.my = 0;
+    E.rowOffset = 0;
     E.numRows = 0;
     E.row = NULL;
 
