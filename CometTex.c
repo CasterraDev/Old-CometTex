@@ -1,14 +1,33 @@
+#define _DEFAULT_SOURCE
+#define _BSD_SOURCE
+#define _GNU_SOURCE
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <ctype.h>
+#include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 
 #define COMETTEX_VERSION "0.0.1"
 #define CTRL_KEY(c) ((c) & 0x1f)
+
+typedef struct erow {
+    int size;
+    char *chars;
+} erow;
+
+struct editorConfig{
+    int mx,my;
+    int screenRow;
+    int screenCol;
+    int numRows;
+    erow *row;
+    struct termios orignal_termios;
+};
 
 enum editorKey{
     ARROW_LEFT = 1000,
@@ -20,13 +39,6 @@ enum editorKey{
     END_KEY,
     PAGE_UP,
     PAGE_DOWN
-};
-
-struct editorConfig{
-    int mx,my;
-    int screenRow;
-    int screenCol;
-    struct termios orignal_termios;
 };
 
 struct editorConfig E;
@@ -88,21 +100,27 @@ void enableRawMode(){
 
 void editorDrawRow(struct abuf *ab){
     for(int i = 0;i<E.screenRow;i++){
-        if (i == E.screenRow / 3){
-            char welcome[124];
-            int welcomeLen = snprintf(welcome, sizeof(welcome), "CometTex Editor -- Version %s", COMETTEX_VERSION);
-            if (welcomeLen > E.screenCol){
-                welcomeLen = E.screenCol;
+        if (i >= E.numRows){
+            if (E.numRows == 0 && i == E.screenRow / 3){
+                char welcome[124];
+                int welcomeLen = snprintf(welcome, sizeof(welcome), "CometTex Editor -- Version %s", COMETTEX_VERSION);
+                if (welcomeLen > E.screenCol){
+                    welcomeLen = E.screenCol;
+                }
+                int padding = (E.screenCol - welcomeLen)/2;
+                if (padding){
+                    abAppend(ab,"~",1);
+                    padding--;
+                }
+                while(padding--) abAppend(ab, " ", 1);
+                abAppend(ab,welcome, welcomeLen);
+            }else{
+                abAppend(ab, "~", 1);
             }
-            int padding = (E.screenCol - welcomeLen)/2;
-            if (padding){
-                abAppend(ab,"~",1);
-                padding--;
-            }
-            while(padding--) abAppend(ab, " ", 1);
-            abAppend(ab,welcome, welcomeLen);
         }else{
-            abAppend(ab, "~", 1);
+            int len = E.row.size;
+            if (len > E.screenCol) len = E.screenCol;
+            abAppend(ab, E.row.chars, len);
         }
 
         abAppend(ab, "\x1b[K", 3);
@@ -272,18 +290,44 @@ int getWindowSize(int *rows,int *cols){
     }
 }
 
+void editorOpen(char *filename){
+    FILE *fp = fopen(filename, "r");
+    if (!fp) die("fopen");
 
+    char *line = NULL;
+    size_t linecap = 0;
+    ssize_t linelen;
+    linelen = getline(&line, &linecap, fp);
+    if (linelen != -1){
+        while(linelen > 0 && (line[linelen - 1] == '\n' || line[linelen - 1] == '\r')){
+            line--;
+        }
+
+        E.row.size = linelen;
+        E.row.chars = malloc(linelen + 1);
+        memcpy(E.row.chars, line, linelen);
+        E.row.chars[linelen] = '\0';
+        E.numRows = 1;
+    }
+    //free(line);
+    fclose(fp);
+}
 
 void initEditor(){
     E.mx = 0;
     E.my = 0;
+    E.numRows = 0;
+    E.row = NULL;
 
     if (getWindowSize(&E.screenRow, &E.screenCol) == -1) die("getWindowSize");
 }
 
-int main(){
+int main(int argc, char *argv[]){
     enableRawMode();
     initEditor();
+    if (argc >= 2){
+        editorOpen(argv[1]);
+    }
 
     while (1){
         editorRefreshScreen();
