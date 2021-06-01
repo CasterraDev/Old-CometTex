@@ -25,6 +25,7 @@ typedef struct erow {
 
 struct editorConfig{
     int mx,my;
+    int rx;
     int colOffset;
     int rowOffset;
     int screenRow;
@@ -103,7 +104,23 @@ void enableRawMode(){
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("EnableRawMode() tcsetattr Failed");
 }
 
+int editorRowMxToRx(erow *row, int mx){
+    int rx = 0;
+    for (int i = 0;i<mx;i++){
+        if (row->chars[i] == '\t'){
+            rx += (COMETTEX_TAB_STOP - 1) - (rx % COMETTEX_TAB_STOP);
+        }
+        rx++;
+    }
+    return rx;
+}
+
 void editorScroll(){
+    E.rx = 0;
+    if (E.my < E.numRows){
+        E.rx = editorRowMxToRx(&E.row[E.my], E.mx);
+    }
+
     //Vertical Scrolling
     if (E.my < E.rowOffset){
         E.rowOffset = E.my;
@@ -112,11 +129,11 @@ void editorScroll(){
         E.rowOffset = E.my - E.screenRow + 1;
     }
     //Horizontal Scrolling
-    if (E.mx < E.colOffset){
+    if (E.rx < E.colOffset){
         E.colOffset = E.mx;
     }
-    if (E.mx >= E.colOffset + E.screenCol){
-        E.colOffset = E.mx - E.screenCol + 1;
+    if (E.rx >= E.colOffset + E.screenCol){
+        E.colOffset = E.rx - E.screenCol + 1;
     }
 }
 
@@ -165,7 +182,7 @@ void editorRefreshScreen(){
     editorDrawRow(&ab);
 
     char buf[32];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.my - E.rowOffset) + 1, (E.mx - E.colOffset) + 1);
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.my - E.rowOffset) + 1, (E.rx - E.colOffset) + 1);
     abAppend(&ab, buf, strlen(buf));
 
     abAppend(&ab, "\x1b[?25h", 6);
@@ -277,14 +294,22 @@ void editorProcessKeypress(){
             E.mx = 0;
             break;
         case END_KEY:
-            E.mx = E.screenCol - 1;
+            if (E.my < E.numRows){
+                E.mx = E.row[E.my].size;
+            }
             break;
         
         case PAGE_UP:
         case PAGE_DOWN:
             {
-                int times = E.screenRow;
-                while(times--){
+                if (c == PAGE_UP){
+                    E.my = E.rowOffset;
+                }else if (c == PAGE_DOWN){
+                    E.my = E.rowOffset + E.screenRow - 1;
+                    if (E.my > E.numRows) E.my = E.numRows;
+                }
+                int t = E.screenRow;
+                while(t--){
                     editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
                 }
             }
@@ -388,6 +413,7 @@ void editorOpen(char *filename){
 void initEditor(){
     E.mx = 0;
     E.my = 0;
+    E.rx = 0;
     E.rowOffset = 0;
     E.colOffset = 0;
     E.numRows = 0;
