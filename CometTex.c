@@ -32,6 +32,7 @@ struct editorConfig{
     int screenCol;
     int numRows;
     erow *row;
+    char *filename;
     struct termios orignal_termios;
 };
 
@@ -165,10 +166,29 @@ void editorDrawRow(struct abuf *ab){
         }
 
         abAppend(ab, "\x1b[K", 3);
-        if (i < E.screenRow - 1){
-            abAppend(ab, "\r\n", 2);
+        abAppend(ab, "\r\n", 2);
+    }
+}
+
+void editorDrawStatusBar(struct abuf *ab){
+    abAppend(ab, "\x1b[7m", 4);
+    char status[80], rstatus[80];
+
+    int len = snprintf(status, sizeof(status), "%.20s - %d lines", E.filename ? E.filename : "[No Name]", E.numRows);
+    int rlen = snprintf(rstatus, sizeof(rstatus), "%d%d", E.my + 1, E.numRows);
+
+    if (len > E.screenCol) len = E.screenCol;
+    abAppend(ab, status, len);
+    while (len < E.screenCol){
+        if (E.screenCol - len == rlen){
+            abAppend(ab, rstatus, rlen);
+            break;
+        }else{
+            abAppend(ab, " ", 1);
+            len++;
         }
     }
+    abAppend(ab, "\x1b[m", 3);
 }
 
 void editorRefreshScreen(){
@@ -180,6 +200,7 @@ void editorRefreshScreen(){
     abAppend(&ab, "\x1b[H", 3);
 
     editorDrawRow(&ab);
+    editorDrawStatusBar(&ab);
 
     char buf[32];
     snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.my - E.rowOffset) + 1, (E.rx - E.colOffset) + 1);
@@ -280,48 +301,7 @@ void editorMoveCursor(int key){
     }
 }
 
-void editorProcessKeypress(){
-    int c = editorReadKey();
 
-    switch(c){
-        case CTRL_KEY('q'):
-            write(STDOUT_FILENO, "\x1b[2J", 4);
-            write(STDOUT_FILENO, "\x1b[H",3);
-            exit(0);
-            break;
-        
-        case HOME_KEY:
-            E.mx = 0;
-            break;
-        case END_KEY:
-            if (E.my < E.numRows){
-                E.mx = E.row[E.my].size;
-            }
-            break;
-        
-        case PAGE_UP:
-        case PAGE_DOWN:
-            {
-                if (c == PAGE_UP){
-                    E.my = E.rowOffset;
-                }else if (c == PAGE_DOWN){
-                    E.my = E.rowOffset + E.screenRow - 1;
-                    if (E.my > E.numRows) E.my = E.numRows;
-                }
-                int t = E.screenRow;
-                while(t--){
-                    editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
-                }
-            }
-            break;
-        case ARROW_UP:
-        case ARROW_DOWN:
-        case ARROW_LEFT:
-        case ARROW_RIGHT:
-            editorMoveCursor(c);
-            break;
-    }
-}
 
 int getCursorPos(int *rows,int *cols){
     char buf[32];
@@ -393,7 +373,27 @@ void editorAppendRow(char *s, size_t len){
     E.numRows++;
 }
 
+void editorRowInsertChar(erow *row, int at, int c){
+    if (at < 0 || at > row->size) at = row->size;
+    row->chars = realloc(row->chars, row->size + 2);
+    memmove(&row->chars[at + 1], &row->chars[at], row->size - at + 1);
+    row->size++;
+    row->chars[at] = c;
+    editorUpdateRow(row);
+}
+
+void editorInsertChar(int c){
+    if (E.my == E.numRows){
+        editorAppendRow("", 0);
+    }
+    editorRowInsertChar(&E.row[E.my], E.mx, c);
+    E.mx++;
+}
+
 void editorOpen(char *filename){
+    free(E.filename);
+    E.filename = strdup(filename);
+
     FILE *fp = fopen(filename, "r");
     if (!fp) die("fopen");
 
@@ -410,6 +410,52 @@ void editorOpen(char *filename){
     fclose(fp);
 }
 
+void editorProcessKeypress(){
+    int c = editorReadKey();
+
+    switch(c){
+        case CTRL_KEY('q'):
+            write(STDOUT_FILENO, "\x1b[2J", 4);
+            write(STDOUT_FILENO, "\x1b[H",3);
+            exit(0);
+            break;
+        
+        case HOME_KEY:
+            E.mx = 0;
+            break;
+        case END_KEY:
+            if (E.my < E.numRows){
+                E.mx = E.row[E.my].size;
+            }
+            break;
+        
+        case PAGE_UP:
+        case PAGE_DOWN:
+            {
+                if (c == PAGE_UP){
+                    E.my = E.rowOffset;
+                }else if (c == PAGE_DOWN){
+                    E.my = E.rowOffset + E.screenRow - 1;
+                    if (E.my > E.numRows) E.my = E.numRows;
+                }
+                int t = E.screenRow;
+                while(t--){
+                    editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
+                }
+            }
+            break;
+        case ARROW_UP:
+        case ARROW_DOWN:
+        case ARROW_LEFT:
+        case ARROW_RIGHT:
+            editorMoveCursor(c);
+            break;
+        default:
+            editorInsertChar(c);
+            break;
+    }
+}
+
 void initEditor(){
     E.mx = 0;
     E.my = 0;
@@ -418,8 +464,10 @@ void initEditor(){
     E.colOffset = 0;
     E.numRows = 0;
     E.row = NULL;
+    E.filename = NULL;
 
     if (getWindowSize(&E.screenRow, &E.screenCol) == -1) die("getWindowSize");
+    E.screenRow -= 1;
 }
 
 int main(int argc, char *argv[]){
