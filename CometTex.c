@@ -5,11 +5,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
+#include <stdarg.h>
 #include <ctype.h>
 #include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
+#include <time.h>
 #include <sys/ioctl.h>
 
 #define COMETTEX_VERSION "0.0.1"
@@ -33,10 +36,13 @@ struct editorConfig{
     int numRows;
     erow *row;
     char *filename;
+    char statusMsg[80];
+    time_t statusMsg_time;
     struct termios orignal_termios;
 };
 
 enum editorKey{
+    BACKSPACE = 127,
     ARROW_LEFT = 1000,
     ARROW_RIGHT,
     ARROW_UP,
@@ -189,6 +195,16 @@ void editorDrawStatusBar(struct abuf *ab){
         }
     }
     abAppend(ab, "\x1b[m", 3);
+    abAppend(ab, "\r\n", 2);
+}
+
+void editorDrawMessageBar(struct abuf *ab){
+    abAppend(ab, "\x1b[K", 3);
+    int msgLen = strlen(E.statusMsg);
+    if (msgLen > E.screenCol) msgLen = E.screenCol;
+    if (msgLen && time(NULL) - E.statusMsg_time < 5){
+        abAppend(ab, E.statusMsg, msgLen);
+    }
 }
 
 void editorRefreshScreen(){
@@ -201,6 +217,7 @@ void editorRefreshScreen(){
 
     editorDrawRow(&ab);
     editorDrawStatusBar(&ab);
+    editorDrawMessageBar(&ab);
 
     char buf[32];
     snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.my - E.rowOffset) + 1, (E.rx - E.colOffset) + 1);
@@ -210,6 +227,14 @@ void editorRefreshScreen(){
 
     write(STDOUT_FILENO, ab.b, ab.len);
     abFree(&ab);
+}
+
+void editorSetStatusMessage(const char *fmt, ...){
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(E.statusMsg, sizeof(E.statusMsg), fmt, ap);
+    va_end(ap);
+    E.statusMsg_time = time(NULL);
 }
 
 int editorReadKey(){
@@ -390,6 +415,24 @@ void editorInsertChar(int c){
     E.mx++;
 }
 
+char *editorRowsToString(int *buflen){
+    int totlen = 0;
+    for (int i = 0;i<E.numRows;i++){
+        totlen += E.row[i].size + 1;
+    }
+    *buflen = totlen;
+
+    char *buf = malloc(totlen);
+    char *p = buf;
+    for (int i = 0;i<E.numRows;i++){
+        memcpy(p, E.row[i].chars, E.row[i].size);
+        p += E.row[i].size;
+        *p = '\n';
+        p++;
+    }
+    return buf;
+}
+
 void editorOpen(char *filename){
     free(E.filename);
     E.filename = strdup(filename);
@@ -410,14 +453,44 @@ void editorOpen(char *filename){
     fclose(fp);
 }
 
+void editorSave(){
+    if (E.filename == NULL) return;
+
+    int len;
+    char *buf = editorRowsToString(&len);
+
+    int fd = open(E.filename, O_RDWR | O_CREAT, 0644);
+    if (fd != -1){
+        if (ftruncate(fd, len) != -1){
+            if (write(fd, buf, len) == len){
+                close(fd);
+                free(buf);
+                editorSetStatusMessage("%d bytes written to disk", len);
+                return;
+            }
+        }
+       close(fd);
+    }
+    free(buf);
+    editorSetStatusMessage("Can't Save! I/O error %s", strerror(errno));
+}
+
 void editorProcessKeypress(){
     int c = editorReadKey();
 
+
     switch(c){
+        case '\r':
+
+            break;
         case CTRL_KEY('q'):
             write(STDOUT_FILENO, "\x1b[2J", 4);
             write(STDOUT_FILENO, "\x1b[H",3);
             exit(0);
+            break;
+        
+        case CTRL_KEY('s'):
+            editorSave();
             break;
         
         case HOME_KEY:
@@ -427,6 +500,12 @@ void editorProcessKeypress(){
             if (E.my < E.numRows){
                 E.mx = E.row[E.my].size;
             }
+            break;
+
+        case BACKSPACE:
+        case CTRL_KEY('h'):
+        case DEL_KEY:
+
             break;
         
         case PAGE_UP:
@@ -450,6 +529,11 @@ void editorProcessKeypress(){
         case ARROW_RIGHT:
             editorMoveCursor(c);
             break;
+        
+        case CTRL_KEY('l'):
+        case '\x1b':
+
+            break;
         default:
             editorInsertChar(c);
             break;
@@ -465,9 +549,11 @@ void initEditor(){
     E.numRows = 0;
     E.row = NULL;
     E.filename = NULL;
+    E.statusMsg[0] = '\0';
+    E.statusMsg_time = 0;
 
     if (getWindowSize(&E.screenRow, &E.screenCol) == -1) die("getWindowSize");
-    E.screenRow -= 1;
+    E.screenRow -= 2;
 }
 
 int main(int argc, char *argv[]){
@@ -476,6 +562,8 @@ int main(int argc, char *argv[]){
     if (argc >= 2){
         editorOpen(argv[1]);
     }
+
+    editorSetStatusMessage("HELP: Ctrl+S = save | Ctrl+Q = quit");
 
     while (1){
         editorRefreshScreen();
