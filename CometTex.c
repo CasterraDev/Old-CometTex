@@ -13,15 +13,19 @@
 #include <sys/ioctl.h>
 
 #define COMETTEX_VERSION "0.0.1"
+#define COMETTEX_TAB_STOP 8
 #define CTRL_KEY(c) ((c) & 0x1f)
 
 typedef struct erow {
     int size;
+    int rsize;
     char *chars;
+    char *render;
 } erow;
 
 struct editorConfig{
     int mx,my;
+    int colOffset;
     int rowOffset;
     int screenRow;
     int screenCol;
@@ -99,6 +103,23 @@ void enableRawMode(){
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("EnableRawMode() tcsetattr Failed");
 }
 
+void editorScroll(){
+    //Vertical Scrolling
+    if (E.my < E.rowOffset){
+        E.rowOffset = E.my;
+    }
+    if (E.my >= E.rowOffset + E.screenRow){
+        E.rowOffset = E.my - E.screenRow + 1;
+    }
+    //Horizontal Scrolling
+    if (E.mx < E.colOffset){
+        E.colOffset = E.mx;
+    }
+    if (E.mx >= E.colOffset + E.screenCol){
+        E.colOffset = E.mx - E.screenCol + 1;
+    }
+}
+
 void editorDrawRow(struct abuf *ab){
     for(int i = 0;i<E.screenRow;i++){
         int fileRow = i + E.rowOffset;
@@ -120,9 +141,10 @@ void editorDrawRow(struct abuf *ab){
                 abAppend(ab, "~", 1);
             }
         }else{
-            int len = E.row[fileRow].size;
+            int len = E.row[fileRow].rsize - E.colOffset;
+            if (len < 0) len = 0;
             if (len > E.screenCol) len = E.screenCol;
-            abAppend(ab, E.row[fileRow].chars, len);
+            abAppend(ab, &E.row[fileRow].render[E.colOffset], len);
         }
 
         abAppend(ab, "\x1b[K", 3);
@@ -133,6 +155,8 @@ void editorDrawRow(struct abuf *ab){
 }
 
 void editorRefreshScreen(){
+    editorScroll();
+
     struct abuf ab = ABUF_INIT;
 
     abAppend(&ab, "\x1b[?25l", 6);
@@ -141,7 +165,7 @@ void editorRefreshScreen(){
     editorDrawRow(&ab);
 
     char buf[32];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.my + 1, E.mx + 1);
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.my - E.rowOffset) + 1, (E.mx - E.colOffset) + 1);
     abAppend(&ab, buf, strlen(buf));
 
     abAppend(&ab, "\x1b[?25h", 6);
@@ -201,15 +225,23 @@ int editorReadKey(){
 }
 
 void editorMoveCursor(int key){
+    erow *row = (E.my >= E.numRows) ? NULL : &E.row[E.my];
+
     switch(key){
         case ARROW_LEFT:
             if (E.mx != 0){
                 E.mx--;
+            }else if (E.my > 0){
+                E.my--;
+                E.mx = E.row[E.my].size;
             }
             break;
         case ARROW_RIGHT:
-            if (E.mx != E.screenCol - 1){
+            if (row && E.mx < row->size){
                 E.mx++;
+            }else if (row && E.mx == row->size){
+                E.my++;
+                E.mx = 0;
             }
             break;
         case ARROW_UP:
@@ -218,10 +250,16 @@ void editorMoveCursor(int key){
             }
             break;
         case ARROW_DOWN:
-            if (E.my != E.screenRow - 1){
+            if (E.my < E.numRows){
                 E.my++;
             }
             break;
+    }
+
+    row = (E.my >= E.numRows) ? NULL : &E.row[E.my];
+    int rowlen = row ? row->size : 0;
+    if (E.mx > rowlen){
+        E.mx = rowlen;
     }
 }
 
@@ -292,6 +330,28 @@ int getWindowSize(int *rows,int *cols){
     }
 }
 
+void editorUpdateRow(erow *row){
+    int tabs = 0;
+    for (int i = 0;i<row->size;i++){
+        if (row->chars[i] == '\t') tabs++;
+    }
+
+    free(row->render);
+    row->render = malloc(row->size + tabs*(COMETTEX_TAB_STOP - 1) + 1);
+
+    int idx = 0;
+    for (int i = 0;i<row->size;i++){
+        if (row->chars[i] == '\t'){
+            row->render[idx++] = ' ';
+            while (idx % COMETTEX_TAB_STOP != 0) row->render[idx++] = ' ';
+        }else{
+            row->render[idx++] = row->chars[i];
+        }
+    }
+    row->render[idx] = '\0';
+    row->rsize = idx;
+}
+
 void editorAppendRow(char *s, size_t len){
     E.row = realloc(E.row, sizeof(erow) * (E.numRows + 1));
 
@@ -300,6 +360,11 @@ void editorAppendRow(char *s, size_t len){
     E.row[at].chars = malloc(len + 1);
     memcpy(E.row[at].chars, s, len);
     E.row[at].chars[len] = '\0';
+
+    E.row[at].rsize = 0;
+    E.row[at].render = NULL;
+    editorUpdateRow(&E.row[at]);
+
     E.numRows++;
 }
 
@@ -324,6 +389,7 @@ void initEditor(){
     E.mx = 0;
     E.my = 0;
     E.rowOffset = 0;
+    E.colOffset = 0;
     E.numRows = 0;
     E.row = NULL;
 
