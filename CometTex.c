@@ -16,6 +16,7 @@
 #include <sys/ioctl.h>
 
 #define COMETTEX_VERSION "0.0.1"
+#define COMETTEX_QUIT_TIMES 3;
 #define COMETTEX_TAB_STOP 8
 #define CTRL_KEY(c) ((c) & 0x1f)
 
@@ -35,6 +36,7 @@ struct editorConfig{
     int screenCol;
     int numRows;
     erow *row;
+    int dirty;
     char *filename;
     char statusMsg[80];
     time_t statusMsg_time;
@@ -55,6 +57,8 @@ enum editorKey{
 };
 
 struct editorConfig E;
+
+void editorSetStatusMessage(const char *fmt, ...);
 
 struct abuf{
     char *b;
@@ -180,7 +184,7 @@ void editorDrawStatusBar(struct abuf *ab){
     abAppend(ab, "\x1b[7m", 4);
     char status[80], rstatus[80];
 
-    int len = snprintf(status, sizeof(status), "%.20s - %d lines", E.filename ? E.filename : "[No Name]", E.numRows);
+    int len = snprintf(status, sizeof(status), "%.20s - %d lines %s", E.filename ? E.filename : "[No Name]", E.numRows, E.dirty ? "(modified)" : "");
     int rlen = snprintf(rstatus, sizeof(rstatus), "%d%d", E.my + 1, E.numRows);
 
     if (len > E.screenCol) len = E.screenCol;
@@ -396,6 +400,7 @@ void editorAppendRow(char *s, size_t len){
     editorUpdateRow(&E.row[at]);
 
     E.numRows++;
+    E.dirty++;
 }
 
 void editorRowInsertChar(erow *row, int at, int c){
@@ -405,6 +410,7 @@ void editorRowInsertChar(erow *row, int at, int c){
     row->size++;
     row->chars[at] = c;
     editorUpdateRow(row);
+    E.dirty++;
 }
 
 void editorInsertChar(int c){
@@ -451,6 +457,7 @@ void editorOpen(char *filename){
     }
     free(line);
     fclose(fp);
+    E.dirty = 0;
 }
 
 void editorSave(){
@@ -465,6 +472,7 @@ void editorSave(){
             if (write(fd, buf, len) == len){
                 close(fd);
                 free(buf);
+                E.dirty = 0;
                 editorSetStatusMessage("%d bytes written to disk", len);
                 return;
             }
@@ -476,6 +484,8 @@ void editorSave(){
 }
 
 void editorProcessKeypress(){
+    static int quit_times = COMETTEX_QUIT_TIMES;
+
     int c = editorReadKey();
 
 
@@ -484,6 +494,11 @@ void editorProcessKeypress(){
 
             break;
         case CTRL_KEY('q'):
+            if (E.dirty && quit_times > 0){
+                editorSetStatusMessage("WARNING!! File modified. Press Ctrl+Q %d more times to quit.", quit_times);
+                quit_times--;
+                return;
+            }
             write(STDOUT_FILENO, "\x1b[2J", 4);
             write(STDOUT_FILENO, "\x1b[H",3);
             exit(0);
@@ -538,6 +553,8 @@ void editorProcessKeypress(){
             editorInsertChar(c);
             break;
     }
+
+    quit_times = COMETTEX_QUIT_TIMES;
 }
 
 void initEditor(){
@@ -548,6 +565,7 @@ void initEditor(){
     E.colOffset = 0;
     E.numRows = 0;
     E.row = NULL;
+    E.dirty = 0;
     E.filename = NULL;
     E.statusMsg[0] = '\0';
     E.statusMsg_time = 0;
