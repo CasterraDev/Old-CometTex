@@ -5,7 +5,7 @@
 #include "CometTex.h"
 #include "syntaxHighlighting.h"
 
-int editorRowMxToRx(erow *row, int mx){
+int rowMxToRx(erow *row, int mx){
     int rx = 0;
     for (int i = 0;i<mx;i++){
         if (row->chars[i] == '\t'){
@@ -16,7 +16,7 @@ int editorRowMxToRx(erow *row, int mx){
     return rx;
 }
 
-int editorRowRxtoMx(erow *row, int rx){
+int rowRxtoMx(erow *row, int rx){
     int cur_rx = 0;
     int mx;
     for (mx = 0;mx < row->size;mx++){

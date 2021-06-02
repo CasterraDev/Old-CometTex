@@ -33,7 +33,7 @@ void die(const char *s){
 void editorScroll(){
     E.rx = 0;
     if (E.my < E.numRows){
-        E.rx = editorRowMxToRx(&E.row[E.my], E.mx);
+        E.rx = rowMxToRx(&E.row[E.my], E.mx);
     }
 
     //Vertical Scrolling
@@ -123,7 +123,7 @@ void editorDrawStatusBar(struct abuf *ab){
     char status[80], rstatus[80];
 
     int len = snprintf(status, sizeof(status), "%.20s - %d lines %s", E.filename ? E.filename : "[No Name]", E.numRows, E.dirty ? "(modified)" : "");
-    int rlen = snprintf(rstatus, sizeof(rstatus), "%s | %d%d",E.syntax ? E.syntax->fileType : "no ft", E.my + 1, E.numRows);
+    int rlen = snprintf(rstatus, sizeof(rstatus), "%s | %d, %d",E.syntax ? E.syntax->fileType : "no ft", E.my + 1, E.rx);
 
     if (len > E.screenCol) len = E.screenCol;
     abAppend(ab, status, len);
@@ -295,7 +295,7 @@ void editorFindCallback(char *query, int key){
         if (match){
             last_match = cur;
             E.my = cur;
-            E.mx = editorRowRxtoMx(row, match - row->render);
+            E.mx = rowRxtoMx(row, match - row->render);
             E.rowOffset = E.numRows;
 
             saved_hl_line = cur;

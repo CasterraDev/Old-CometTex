@@ -3,9 +3,9 @@
 #include "CometTex.h"
 
 
-int editorRowMxToRx(erow *row, int mx);
+int rowMxToRx(erow *row, int mx);
 
-int editorRowRxtoMx(erow *row, int rx);
+int rowRxtoMx(erow *row, int rx);
 
 void editorUpdateRow(erow *row);
 
