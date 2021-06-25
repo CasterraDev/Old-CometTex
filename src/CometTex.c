@@ -23,7 +23,7 @@
 
 void die(const char *s){
     //Clear the entire screen
-    write(STDOUT_FILENO, "\x1b[2H", 4);
+    write(STDOUT_FILENO, "\x1b[2J", 4);
     //Reposition the cursor to the top left
     write(STDOUT_FILENO, "\x1b[H",3);
     perror(s);
@@ -58,7 +58,7 @@ void editorDrawRow(struct abuf *ab){
         if (fileRow >= E.numRows){
             if (E.numRows == 0 && i == E.screenRow / 3){
                 char welcome[124];
-                int welcomeLen = snprintf(welcome, sizeof(welcome), "CometTex Editor -- Version %s", COMETTEX_VERSION);
+                int welcomeLen = snprintf(welcome, sizeof(welcome), "CometTex Editor -- Version %s", "0.0.1");
                 if (welcomeLen > E.screenCol){
                     welcomeLen = E.screenCol;
                 }

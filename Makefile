@@ -1,2 +1,2 @@
-CometTex: CometTex.c
-	cc -o CometTex -g CometTex.c
+CometTex: src/CometTex.c src/syntaxHighlighting.c src/appendBuffer.c src/ops.c src/rawmode.c src/fileIO.c src/command.c
+	cc -o CometTex -g src/CometTex.c src/syntaxHighlighting.c src/appendBuffer.c src/ops.c src/rawmode.c src/fileIO.c src/command.c

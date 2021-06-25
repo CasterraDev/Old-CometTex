@@ -8,6 +8,33 @@
 #include "CometTex.h"
 #include "syntaxHighlighting.h"
 
+#define COMETTEX_CONFIG_FILENAME "comettex.con"
+
+//-------------------Function currently Does not Work----------------
+char *searchConfigFile(char *n){
+    FILE *f = fopen("src/comettex.con", "r");
+    if (!f) die("fopen config:");
+
+    char *l = NULL;
+    size_t lCap = 0;
+    ssize_t lLen;
+    char p[124][124];
+    int i = 0, c = 0, j = 0;
+    while ((lLen = getline(&l, &lCap, f)) != -1){
+        if (n[i] == ' ' || n[i] == '\0'){
+            p[c][j] = '\0';
+            j=0;
+            c++;
+        }else{
+            p[c][j] = n[i];
+            j++;
+        }
+        i++;
+    }
+    fclose(f);
+    die("Couldn't find config defination");
+}
+
 char *editorRowsToString(int *buflen){
     int totlen = 0;
     for (int i = 0;i<E.numRows;i++){
@@ -33,7 +60,7 @@ void editorOpen(char *filename){
     editorSelectSyntaxHighlight();
 
     FILE *fp = fopen(filename, "r");
-    if (!fp) die("fopen");
+    if (!fp) die("fopen:");
 
     char *line = NULL;
     size_t linecap = 0;
@@ -50,6 +77,7 @@ void editorOpen(char *filename){
 }
 
 void editorSave(){
+
     if (E.filename == NULL){
         E.filename = editorPrompt("Save as: %s (ESC to cancel", NULL);
         if (E.filename == NULL){
@@ -58,6 +86,7 @@ void editorSave(){
         }
         editorSelectSyntaxHighlight();
     }
+
 
     int len;
     char *buf = editorRowsToString(&len);
@@ -75,6 +104,7 @@ void editorSave(){
         }
        close(fd);
     }
+
     free(buf);
     editorSetStatusMessage("Can't Save! I/O error %s", strerror(errno));
 }

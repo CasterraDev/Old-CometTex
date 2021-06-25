@@ -141,14 +141,14 @@ void editorUpdateSyntax(erow *row){
 
 int editorSyntaxToColor(int hl){
     switch (hl){
-        case HL_NUMBER: return 31;
-        case HL_KEYWORD1: return 32;
-        case HL_STRING: return 33;
-        case HL_MATCH: return 34;
-        case HL_KEYWORD2: return 35;
+        case HL_NUMBER: return 31; //Red
+        case HL_KEYWORD1: return 34; //Blue
+        case HL_STRING: return 33; //Yellow
+        case HL_MATCH: return 36; //Cyan
+        case HL_KEYWORD2: return 34; //Blue
         case HL_COMMENT:
-        case HL_MLCOMMENT: return 36;
-        default: return 37;
+        case HL_MLCOMMENT: return 32; //Green
+        default: return 37; //White
     }
 }
 
