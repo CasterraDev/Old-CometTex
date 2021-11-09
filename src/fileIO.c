@@ -11,7 +11,7 @@
 #define COMETTEX_CONFIG_FILENAME "comettex.con"
 
 //-------------------Function currently Does not Work----------------
-char *searchConfigFile(char *n){
+char *searchConfigFile(char *_n){
     FILE *f = fopen("src/comettex.con", "r");
     if (!f) die("fopen config:");
 
@@ -21,12 +21,12 @@ char *searchConfigFile(char *n){
     char p[124][124];
     int i = 0, c = 0, j = 0;
     while ((lLen = getline(&l, &lCap, f)) != -1){
-        if (n[i] == ' ' || n[i] == '\0'){
+        if (_n[i] == ' ' || _n[i] == '\0'){
             p[c][j] = '\0';
             j=0;
             c++;
         }else{
-            p[c][j] = n[i];
+            p[c][j] = _n[i];
             j++;
         }
         i++;
@@ -35,14 +35,20 @@ char *searchConfigFile(char *n){
     die("Couldn't find config defination");
 }
 
-char *editorRowsToString(int *buflen){
+/*
+ Converts the array of erow structs into one single string with \n separating them
+ @returns *variable expecting you to free the memory
+*/
+char *editorRowsToString(int *_buflen){
     int totlen = 0;
     for (int i = 0;i<E.numRows;i++){
+        //Adding 1 to the end because of the \n we are about to add to each line
         totlen += E.row[i].size + 1;
     }
-    *buflen = totlen;
-
+    *_buflen = totlen;
+    //Allocate the memory needed
     char *buf = malloc(totlen);
+
     char *p = buf;
     for (int i = 0;i<E.numRows;i++){
         memcpy(p, E.row[i].chars, E.row[i].size);
@@ -53,13 +59,13 @@ char *editorRowsToString(int *buflen){
     return buf;
 }
 
-void editorOpen(char *filename){
+void editorOpen(char *_filename){
     free(E.filename);
-    E.filename = strdup(filename);
+    E.filename = strdup(_filename);
 
     editorSelectSyntaxHighlight();
 
-    FILE *fp = fopen(filename, "r");
+    FILE *fp = fopen(_filename, "r");
     if (!fp) die("fopen:");
 
     char *line = NULL;

@@ -5,6 +5,7 @@
 #include "CometTex.h"
 #include "syntaxHighlighting.h"
 
+//Row MouseX to RowX
 int rowMxToRx(erow *row, int mx){
     int rx = 0;
     for (int i = 0;i<mx;i++){
@@ -16,6 +17,7 @@ int rowMxToRx(erow *row, int mx){
     return rx;
 }
 
+//Row RowX to MouseX
 int rowRxtoMx(erow *row, int rx){
     int cur_rx = 0;
     int mx;

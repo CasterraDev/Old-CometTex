@@ -6,7 +6,7 @@
 
 #define COMETTEX_VERSION "0.0.1"
 #define COMETTEX_QUIT_TIMES 3;
-#define COMETTEX_TAB_STOP 8
+#define COMETTEX_TAB_STOP 4
 #define CTRL_KEY(c) ((c) & 0x1f)
 
 typedef struct erow {
@@ -28,12 +28,18 @@ struct editorConfig{
     int screenCol;
     int numRows;
     erow *row;
+    int mode;
     int dirty;
     char *filename;
     char statusMsg[80];
     time_t statusMsg_time;
     struct editorSyntax *syntax;
     struct termios orignal_termios;
+};
+
+enum editorMode {
+    MODE_INSERT = 0,
+    MODE_NORMAL
 };
 
 enum editorKey{
@@ -50,13 +56,6 @@ enum editorKey{
 };
 
 struct editorConfig E;
-
-struct abuf{
-    char *b;
-    int len;
-};
-
-#define ABUF_INIT {NULL,0}
 
 void die(const char *s);
 char *editorPrompt(char *prompt, void (*callback)(char *, int));

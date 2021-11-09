@@ -31,7 +31,9 @@ void die(const char *s){
 }
 
 void editorScroll(){
+    //Editor's render X is 0
     E.rx = 0;
+    
     if (E.my < E.numRows){
         E.rx = rowMxToRx(&E.row[E.my], E.mx);
     }
@@ -301,7 +303,7 @@ void editorFindCallback(char *query, int key){
             saved_hl_line = cur;
             saved_hl = malloc(row->rsize);
             memcpy(saved_hl, row->hl, row->rsize);
-            //Highlight the matches blue
+            //Highlight the matches
             memset(&row->hl[match - row->render], HL_MATCH, strlen(query));
             break;
         }
@@ -314,7 +316,7 @@ void editorFind(){
     int saved_colOff = E.colOffset;
     int saved_rowOff = E.rowOffset;
 
-    char *query = editorPrompt("Search: %s (ESC to cancel", editorFindCallback);
+    char *query = editorPrompt("Search: %s (ESC to cancel)", editorFindCallback);
 
     if (query){
         free(query);
@@ -326,12 +328,130 @@ void editorFind(){
     }
 }
 
-void editorProcessKeypress(){
+void enterInsertMode(int key){
+    switch (key) {
+        case 'i':
+            E.mode = 0;
+            break;
+        case 'I': 
+            E.mx = 0;
+            E.mode = 0;
+            break;
+        case 'a': 
+            editorMoveCursor(ARROW_RIGHT);
+            E.mode = 0;
+            break;
+        case 'A': 
+            if (E.my < E.numRows) {
+                E.mx = E.row[E.my].size;
+            }
+            E.mode = 0;
+            break;
+        case 'o':
+            if (E.my < E.numRows) {
+                E.mx = E.row[E.my].size;
+            }
+            editorInsertNewLine();
+            E.mode = 0;
+            break;
+        case 'O':
+            E.mx = 0;
+            editorInsertNewLine();
+            editorMoveCursor(ARROW_UP);
+            E.mode = 0;
+            break;
+    }
+}
+
+void processKeypressNormal(){
     static int quit_times = COMETTEX_QUIT_TIMES;
 
     int c = editorReadKey();
 
-    char *name;
+    switch(c){
+        case CTRL_KEY('q'):
+            if (E.dirty && quit_times > 0){
+                editorSetStatusMessage("WARNING!! File modified. Press Ctrl+Q %d more times to quit.", quit_times);
+                quit_times--;
+                return;
+            }
+            write(STDOUT_FILENO, "\x1b[2J", 4);
+            write(STDOUT_FILENO, "\x1b[H",3);
+            exit(0);
+            break;
+        
+        case CTRL_KEY('s'):
+            editorSave();
+            break;
+
+        case CTRL_KEY('f'):
+            editorFind();
+            break;
+
+        case CTRL_KEY('x'):
+            editorSave();
+            write(STDOUT_FILENO, "\x1b[2J", 4);
+            write(STDOUT_FILENO, "\x1b[H",3);
+            exit(0);
+            break;
+        
+        case HOME_KEY:
+            E.mx = 0;
+            break;
+        case END_KEY:
+            if (E.my < E.numRows){
+                E.mx = E.row[E.my].size;
+            }
+            break;
+
+        case BACKSPACE:
+            editorMoveCursor(ARROW_LEFT);
+            break;
+        case DEL_KEY:
+            editorMoveCursor(ARROW_RIGHT);
+            break;
+        
+        case PAGE_UP:
+        case PAGE_DOWN:
+            {
+                if (c == PAGE_UP){
+                    E.my = E.rowOffset;
+                }else if (c == PAGE_DOWN){
+                    E.my = E.rowOffset + E.screenRow - 1;
+                    if (E.my > E.numRows) E.my = E.numRows;
+                }
+                int t = E.screenRow;
+                while(t--){
+                    editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
+                }
+            }
+            break;
+        case ARROW_UP:
+        case ARROW_DOWN:
+        case ARROW_LEFT:
+        case ARROW_RIGHT:
+            editorMoveCursor(c);
+            break;
+        case 'i':
+        case 'I':
+        case 'a':
+        case 'A':
+        case 'o':
+        case 'O':
+            enterInsertMode(c);
+            break;
+        default:
+
+            break;
+    }
+
+    quit_times = COMETTEX_QUIT_TIMES;
+}
+
+void ProcessKeypressInsert(){
+    static int quit_times = COMETTEX_QUIT_TIMES;
+
+    int c = editorReadKey();
 
     switch(c){
         case '\r':
@@ -361,11 +481,6 @@ void editorProcessKeypress(){
             write(STDOUT_FILENO, "\x1b[2J", 4);
             write(STDOUT_FILENO, "\x1b[H",3);
             exit(0);
-            break;
-        
-        case ':':
-            name = editorPrompt(":%s",NULL);
-            commandPrompt(name);
             break;
         
         case HOME_KEY:
@@ -408,7 +523,7 @@ void editorProcessKeypress(){
         
         case CTRL_KEY('l'):
         case '\x1b':
-
+            E.mode = 1;
             break;
         default:
             editorInsertChar(c);
@@ -426,6 +541,7 @@ void initEditor(){
     E.colOffset = 0;
     E.numRows = 0;
     E.row = NULL;
+    E.mode = 1;
     E.dirty = 0;
     E.filename = NULL;
     E.statusMsg[0] = '\0';
@@ -447,7 +563,11 @@ int main(int argc, char *argv[]){
 
     while (1){
         editorRefreshScreen();
-        editorProcessKeypress();
+        if (E.mode == MODE_NORMAL) {
+            processKeypressNormal();
+        } else {
+            ProcessKeypressInsert();
+        }
     }
     return 0;
 }

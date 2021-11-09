@@ -32,20 +32,26 @@ int editorReadKey(){
     int nread;
     char c;
     while((nread = read(STDIN_FILENO, &c, 1)) != 1){
-        if (nread == 1 && errno != EAGAIN) die("read");
+        if (nread == -1 && errno != EAGAIN) die("EditorReadKey() failed");
     }
 
+    //If the character starts with an escape. It could be the start of on escape sequence
     if (c == '\x1b'){
         char seq[3];
-
+        //Read the character after the escape key
         if (read(STDIN_FILENO, &seq[0], 1) != 1) return '\x1b';
+        //Read the character after the one above
         if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\x1b';
 
+        //If the escape key is the beginning of an esacape sequence
         if (seq[0] == '['){
+            //Escape sequences can sometimes have a number, so check for that
             if (seq[1] >= '0' && seq[1] <= '9'){
+                //If so read the next character to get the full escape sequence
                 if (read(STDIN_FILENO, &seq[2], 1) != 1) return '\x1b';
                 if (seq[2] == '~'){
                     switch(seq[1]){
+                        //Seq would be \x1b1~ for HOME_KEY
                         case '1': return HOME_KEY;
                         case '3': return DEL_KEY;
                         case '4': return END_KEY;
@@ -56,7 +62,9 @@ int editorReadKey(){
                     }
                 }
             }else{
+                //If not just read the next character
                 switch (seq[1]){
+                    //Seq would be \x1bA for ARROW_UP
                     case 'A': return ARROW_UP;
                     case 'B': return ARROW_DOWN;
                     case 'C': return ARROW_RIGHT;
@@ -67,7 +75,9 @@ int editorReadKey(){
             }
         } else if (seq[0] == 'O'){
             switch(seq[1]){
+                //Seq would be \x1b0H
                 case 'H': return HOME_KEY;
+                //Seq would be \x1b0F
                 case 'F': return END_KEY;
             }
         }

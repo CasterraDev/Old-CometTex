@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "CometTex.h"
+#include "appendBuffer.h"
 
 void abAppend(struct abuf *ab,const char *s,int len){
     char *new = realloc(ab->b,ab->len + len);
