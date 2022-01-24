@@ -375,7 +375,9 @@ void processKeypressNormal(){
                 quit_times--;
                 return;
             }
+            //Clear the entire screen
             write(STDOUT_FILENO, "\x1b[2J", 4);
+            //Reposition the cursor to the top left
             write(STDOUT_FILENO, "\x1b[H",3);
             exit(0);
             break;
@@ -390,15 +392,19 @@ void processKeypressNormal(){
 
         case CTRL_KEY('x'):
             editorSave();
+            //Clear the entire screen
             write(STDOUT_FILENO, "\x1b[2J", 4);
+            //Reposition the cursor to the top left
             write(STDOUT_FILENO, "\x1b[H",3);
             exit(0);
             break;
         
         case HOME_KEY:
+            //Bring the cursor(mouse) to the beginning of the line
             E.mx = 0;
             break;
         case END_KEY:
+            //Bring cursor to end of line
             if (E.my < E.numRows){
                 E.mx = E.row[E.my].size;
             }
@@ -415,8 +421,10 @@ void processKeypressNormal(){
         case PAGE_DOWN:
             {
                 if (c == PAGE_UP){
+                    //Bring cursor to top of the screen. Keeping it's x value if the line length is the same/bigger
                     E.my = E.rowOffset;
                 }else if (c == PAGE_DOWN){
+                    //Bring cursor to bottom of screen. Keeping it's x value if the line length is the same/bigger
                     E.my = E.rowOffset + E.screenRow - 1;
                     if (E.my > E.numRows) E.my = E.numRows;
                 }
@@ -554,7 +562,9 @@ void initEditor(){
 
 int main(int argc, char *argv[]){
     enableRawMode();
+    //Set all variables needed to the default
     initEditor();
+    //If they gave a file name open the file
     if (argc >= 2){
         editorOpen(argv[1]);
     }
@@ -562,6 +572,7 @@ int main(int argc, char *argv[]){
     editorSetStatusMessage("HELP: Ctrl+S = save | CTRL+F find | Ctrl+Q = quit");
 
     while (1){
+        //Refresh the screen every frame
         editorRefreshScreen();
         if (E.mode == MODE_NORMAL) {
             processKeypressNormal();
