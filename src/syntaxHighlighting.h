@@ -10,6 +10,7 @@ struct editorSyntax{
     char *fileType;
     char **fileMatch;
     char **keywords;
+    char **importwords;
     char *singleCommentStart;
     char *multiCommentStart;
     char *multiCommentEnd;
@@ -24,7 +25,9 @@ enum editorHighlight{
     HL_COMMENT,
     HL_KEYWORD1,
     HL_KEYWORD2,
-    HL_MLCOMMENT
+    HL_MLCOMMENT,
+    HL_FUNCTIONS,
+    HL_IMPORTKEYWORDS,
 };
 
 extern char *C_HL_extensions[];
@@ -34,6 +37,7 @@ extern struct editorSyntax HLDB[];
 #define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
 
 void editorUpdateSyntax(erow *row);
+int fromIdxToSep(int idx, erow *row);
 int editorSyntaxToColor(int hl);
 void editorSelectSyntaxHighlight();
 

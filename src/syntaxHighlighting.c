@@ -11,11 +11,14 @@ char *C_HL_keywords[] = {
     "int|", "long|", "double|", "float|", "char|", "unsigned|", "signed|", "void|", NULL
 };
 
+char *C_HL_importwords[] = {"#include", "#define"};
+
 struct editorSyntax HLDB[] = {
     {
         "c",
         C_HL_extensions,
         C_HL_keywords,
+        C_HL_importwords,
         "//", "/*", "*/",
         HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
     },
@@ -32,6 +35,7 @@ void editorUpdateSyntax(erow *row){
     if (E.syntax == NULL) return;
 
     char **keywords = E.syntax->keywords;
+    char **importwords = E.syntax->importwords;
 
     char *scs = E.syntax->singleCommentStart;
     char *mcs = E.syntax->multiCommentStart;
@@ -57,6 +61,7 @@ void editorUpdateSyntax(erow *row){
             }
         }
 
+        //If we started a multiline comment and make sure we aren't in a string
         if (mcsLen && mceLen && !inString){
             if (inComment){
                 row->hl[i] = HL_MLCOMMENT;
@@ -99,6 +104,15 @@ void editorUpdateSyntax(erow *row){
                 }
             }
         }
+        //If a function is starting
+        //Make the chars before it a certain color
+        if (c == '('){
+            int cnt = i-1;
+            while(!isSeparator(row->render[cnt])){
+                row->hl[cnt] = HL_FUNCTIONS;
+                cnt--;
+            }
+        }
         
         if (E.syntax->flags & HL_HIGHLIGHT_NUMBERS){
             if (isdigit(c)){
@@ -126,6 +140,16 @@ void editorUpdateSyntax(erow *row){
                 preSep = 0;
                 continue;
             }
+
+            int jk;
+            for (jk = 0; importwords[jk];jk++){
+                int iwLen = strlen(importwords[jk]);
+                if (!strncmp(&row->render[i],importwords[jk],iwLen)){
+                    memset(&row->hl[i],HL_IMPORTKEYWORDS,iwLen);
+                    i += iwLen;
+                    break;
+                }
+            }
         }
 
         preSep = isSeparator(c);
@@ -139,6 +163,21 @@ void editorUpdateSyntax(erow *row){
     }
 }
 
+// int fromIdxToSep(int idx, erow *row){
+//     int cnt = 1;
+//     int i = idx;
+//     int b = 1;
+//     while(i > row->rsize && b){
+//         if (isSeparator(&row->render[i])){
+//             b = 0;
+//         }else{
+//             cnt++;
+//         }
+//         i++;
+//     }
+//     return cnt;
+// }
+
 int editorSyntaxToColor(int hl){
     switch (hl){
         case HL_NUMBER: return 31; //Red
@@ -148,6 +187,8 @@ int editorSyntaxToColor(int hl){
         case HL_KEYWORD2: return 34; //Blue
         case HL_COMMENT:
         case HL_MLCOMMENT: return 32; //Green
+        case HL_FUNCTIONS: return 35;
+        case HL_IMPORTKEYWORDS: return 33;
         default: return 37; //White
     }
 }
