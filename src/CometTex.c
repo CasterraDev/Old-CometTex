@@ -556,6 +556,8 @@ void initEditor(){
     E.statusMsg_time = 0;
     E.syntax = NULL;
 
+    char* result = searchConfigFile("COMETTEX_VERSION");
+
     if (getWindowSize(&E.screenRow, &E.screenCol) == -1) die("getWindowSize");
     E.screenRow -= 2;
 }

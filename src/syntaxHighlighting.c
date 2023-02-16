@@ -188,7 +188,7 @@ int editorSyntaxToColor(int hl){
         case HL_COMMENT:
         case HL_MLCOMMENT: return 32; //Green
         case HL_FUNCTIONS: return 35;
-        case HL_IMPORTKEYWORDS: return 33;
+        case HL_IMPORTKEYWORDS: return 34;
         default: return 37; //White
     }
 }

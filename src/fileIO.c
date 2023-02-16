@@ -11,17 +11,33 @@
 #define COMETTEX_CONFIG_FILENAME "comettex.con"
 
 //-------------------Function currently Does not Work----------------
-char *searchConfigFile(char *_n){
+char searchConfigFile(char* _n){
     FILE *f = fopen("src/comettex.con", "r");
     if (!f) die("fopen config:");
 
+    char *result = NULL;
     char *l = NULL;
     size_t lCap = 0;
     ssize_t lLen;
     char p[124][124];
     int i = 0, c = 0, j = 0;
     while ((lLen = getline(&l, &lCap, f)) != -1){
-        if (_n[i] == ' ' || _n[i] == '\0'){
+        if (!strncmp(l,_n,strlen(_n))){
+            int h = 1;
+            int len = 1;
+            int found = 0;
+            while (l[strlen(_n) + len] != '\0'){
+                if (l[strlen(_n) + len] != ':' && !found){
+                    h++;
+                }else{
+                    found = 1;
+                }
+                len++;
+            }
+            //PROBLEM
+            result = getSubString(l,result,h,len);
+        }
+        if (*l == ' ' || *l == '\0'){
             p[c][j] = '\0';
             j=0;
             c++;
@@ -33,6 +49,28 @@ char *searchConfigFile(char *_n){
     }
     fclose(f);
     die("Couldn't find config defination");
+}
+
+int getSubString(char* src,char* dest, int from, int to){
+    int length = 0;
+    int i=0,j=0;
+    length = strlen(src);
+
+    if (from < 0 || from > length){
+        printf("Invaild from value");
+    }
+
+    if (to > length){
+        printf("Invalid to value");
+    }
+
+    for(i=from,j=0;i<=to;i++,j++){
+        dest[j]=src[i];
+    }
+
+    dest[j] = '\0';
+
+    return 0;
 }
 
 /*
