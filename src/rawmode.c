@@ -6,16 +6,16 @@
 #include <sys/ioctl.h>
 #include "CometTex.h"
 
-void disableRawMode(){
-    if( tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orignal_termios) == -1) die("DisableRawMode() Failed");
+void disableRawMode(editorConfig *ce){
+    if( tcsetattr(STDIN_FILENO, TCSAFLUSH, &ce->orignal_termios) == -1) die("DisableRawMode() Failed");
 }
 
-void enableRawMode(){
-    if (tcgetattr(STDIN_FILENO, &E.orignal_termios) == -1) die("EnableRawMode() tcgetattr Failed");
+void enableRawMode(editorConfig *ce){
+    if (tcgetattr(STDIN_FILENO, &ce->orignal_termios) == -1) die("EnableRawMode() tcgetattr Failece.d");
     //atexit is called when the program exits
-    atexit(disableRawMode);
+    on_exit(disableRawMode,ce);
 
-    struct termios raw = E.orignal_termios;
+    struct termios raw = ce->orignal_termios;
     //Turn off some flags
     raw.c_cflag |= (CS8);
     raw.c_oflag &= ~(OPOST); //OPOST turns off output processing

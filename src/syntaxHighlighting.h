@@ -36,9 +36,9 @@ extern struct editorSyntax HLDB[];
 
 #define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
 
-void editorUpdateSyntax(erow *row);
+void editorUpdateSyntax(editorConfig *ce, erow *row);
 int fromIdxToSep(int idx, erow *row);
 int editorSyntaxToColor(int hl);
-void editorSelectSyntaxHighlight();
+void editorSelectSyntaxHighlight(editorConfig *ce);
 
 #endif

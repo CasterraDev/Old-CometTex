@@ -19,7 +19,7 @@ typedef struct erow {
     int hlOpenComment;
 } erow;
 
-struct editorConfig{
+typedef struct editorConfig{
     int mx,my;
     int rx;
     int colOffset;
@@ -35,7 +35,7 @@ struct editorConfig{
     time_t statusMsg_time;
     struct editorSyntax *syntax;
     struct termios orignal_termios;
-};
+} editorConfig;
 
 enum editorMode {
     MODE_INSERT = 0,
@@ -55,7 +55,7 @@ enum editorKey{
     PAGE_DOWN
 };
 
-struct editorConfig E;
+static editorConfig E;
 
 void die(const char *s);
 char *editorPrompt(char *prompt, void (*callback)(char *, int));

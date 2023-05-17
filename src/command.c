@@ -5,11 +5,11 @@
 #include "command.h"
 #include "CometTex.h"
 
-void commandPrompt(char *n){
-    editorInsertChar(n[0]);
+void commandPrompt(editorConfig *ce, char *n){
+    editorInsertChar(ce,n[0]);
     switch(n[0]){
         case CTRL_KEY('s'):
-            editorSave();
+            editorSave(ce);
             break;
 
         case CTRL_KEY('f'):
@@ -17,7 +17,7 @@ void commandPrompt(char *n){
             break;
 
         case CTRL_KEY('x'):
-            editorSave();
+            editorSave(ce);
             write(STDOUT_FILENO, "\x1b[2J", 4);
             write(STDOUT_FILENO, "\x1b[H",3);
             exit(0);

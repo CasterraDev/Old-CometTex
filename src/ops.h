@@ -7,24 +7,24 @@ int rowMxToRx(erow *row, int mx);
 
 int rowRxtoMx(erow *row, int rx);
 
-void editorUpdateRow(erow *row);
+void editorUpdateRow(editorConfig *ce, erow *row);
 
-void editorInsertRow(int at, char *s, size_t len);
+void editorInsertRow(editorConfig *ce, int at, char *s, size_t len);
 
 void editorFreeRow(erow *row);
 
-void editorRowInsertChar(erow *row, int at, int c);
+void editorRowInsertChar(editorConfig *ce, erow *row, int at, int c);
 
-void editorRowAppendString(erow *row, char *s, size_t len);
+void editorRowAppendString(editorConfig *ce, erow *row, char *s, size_t len);
 
-void editorRowDelChar(erow *row, int at);
+void editorRowDelChar(editorConfig *ce, erow *row, int at);
 
-void editorDelChar();
+void editorDelChar(editorConfig *ce);
 
-void editorInsertNewLine();
+void editorInsertNewLine(editorConfig *ce);
 
-void editorInsertChar(int c);
+void editorInsertChar(editorConfig *ce, int c);
 
-void editorDelRow(int at);
+void editorDelRow(editorConfig *ce, int at);
 
 #endif

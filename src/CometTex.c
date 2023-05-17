@@ -351,12 +351,12 @@ void enterInsertMode(int key){
             if (E.my < E.numRows) {
                 E.mx = E.row[E.my].size;
             }
-            editorInsertNewLine();
+            editorInsertNewLine(&E);
             E.mode = 0;
             break;
         case 'O':
             E.mx = 0;
-            editorInsertNewLine();
+            editorInsertNewLine(&E);
             editorMoveCursor(ARROW_UP);
             E.mode = 0;
             break;
@@ -383,7 +383,7 @@ void processKeypressNormal(){
             break;
         
         case CTRL_KEY('s'):
-            editorSave();
+            editorSave(&E);
             break;
 
         case CTRL_KEY('f'):
@@ -391,7 +391,7 @@ void processKeypressNormal(){
             break;
 
         case CTRL_KEY('x'):
-            editorSave();
+            editorSave(&E);
             //Clear the entire screen
             write(STDOUT_FILENO, "\x1b[2J", 4);
             //Reposition the cursor to the top left
@@ -463,7 +463,7 @@ void ProcessKeypressInsert(){
 
     switch(c){
         case '\r':
-            editorInsertNewLine();
+            editorInsertNewLine(&E);
             break;
         case CTRL_KEY('q'):
             if (E.dirty && quit_times > 0){
@@ -477,7 +477,7 @@ void ProcessKeypressInsert(){
             break;
         
         case CTRL_KEY('s'):
-            editorSave();
+            editorSave(&E);
             break;
 
         case CTRL_KEY('f'):
@@ -485,7 +485,7 @@ void ProcessKeypressInsert(){
             break;
 
         case CTRL_KEY('x'):
-            editorSave();
+            editorSave(&E);
             write(STDOUT_FILENO, "\x1b[2J", 4);
             write(STDOUT_FILENO, "\x1b[H",3);
             exit(0);
@@ -504,7 +504,7 @@ void ProcessKeypressInsert(){
         case CTRL_KEY('h'):
         case DEL_KEY:
             if (c == DEL_KEY) editorMoveCursor(ARROW_RIGHT);
-            editorDelChar();
+            editorDelChar(&E);
             break;
         
         case PAGE_UP:
@@ -534,7 +534,7 @@ void ProcessKeypressInsert(){
             E.mode = 1;
             break;
         default:
-            editorInsertChar(c);
+            editorInsertChar(&E,c);
             break;
     }
 
@@ -556,21 +556,23 @@ void initEditor(){
     E.statusMsg_time = 0;
     E.syntax = NULL;
 
-    char* result = searchConfigFile("COMETTEX_VERSION");
+    //char* result = searchConfigFile("COMETTEX_VERSION");
 
     if (getWindowSize(&E.screenRow, &E.screenCol) == -1) die("getWindowSize");
     E.screenRow -= 2;
 }
 
 int main(int argc, char *argv[]){
-    enableRawMode();
+    if (argc != 2) {
+        fprintf(stderr,"Usage: ./CometTex <filename>\n");
+        exit(1);
+    }
+    
     //Set all variables needed to the default
     initEditor();
     //If they gave a file name open the file
-    if (argc >= 2){
-        editorOpen(argv[1]);
-    }
-
+    editorOpen(&E,argv[1]);
+    enableRawMode(&E);
     editorSetStatusMessage("HELP: Ctrl+S = save | CTRL+F find | Ctrl+Q = quit");
 
     while (1){
